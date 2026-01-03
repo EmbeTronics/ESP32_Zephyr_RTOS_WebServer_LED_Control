@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Muhammad Haziq
+ * Copyright (c) 2026 EmbeTronics
  *
  * SPDX-License-Identifier: Apache-2.0
  */
