@@ -13,5 +13,5 @@ zephyr_linker_section(NAME http_resource_desc_http_service
 
 set(gen_dir ${ZEPHYR_BINARY_DIR}/include/generated/)
 set(source_file_index src/root.html)
-generate_inc_file_for_target(app ${source_file_index} ${gen_dir}/root.html.gz.inc --gzip)
+generate_inc_file_for_target(app ${source_file_index} ${gen_dir}/root.html.gz.inc)
 

@@ -9,8 +9,16 @@
 #include <zephyr/net/wifi_mgmt.h>
 #include <zephyr/net/dhcpv4_server.h>
 #include <zephyr/net/http/service.h>
+#include <zephyr/drivers/gpio.h>
 
 LOG_MODULE_REGISTER(MAIN);
+
+/* The devicetree node identifier for the "led0" alias. */
+#define RED_NODE 	DT_ALIAS(redled)
+#define GREEN_NODE 	DT_ALIAS(greenled)
+
+static const struct gpio_dt_spec redled = GPIO_DT_SPEC_GET(RED_NODE, gpios);
+static const struct gpio_dt_spec greenled = GPIO_DT_SPEC_GET(GREEN_NODE, gpios);
 
 #define MACSTR "%02X:%02X:%02X:%02X:%02X:%02X"
 
@@ -45,18 +53,40 @@ BUILD_ASSERT(sizeof(CONFIG_WIFI_SAMPLE_AP_NETMASK) > 1,
 #endif
 
 /********** HTTP Server ***********/
+
+static uint8_t root_html_gz[] = {
+#include "root.html.gz.inc"
+};
+
 static uint16_t http_service_port = 80;
 
 static int default_handler(struct http_client_ctx *client, enum http_data_status status,
                    const struct http_request_ctx *request_ctx,
                    struct http_response_ctx *response_ctx, void *user_data)
 {
-    static const char response_404[] = "Oops, page not found!";
+	// LOG_INF("%s,%d, req %s", __func__, __LINE__, client->url_buffer);
+
+	if(strstr(client->url_buffer,"GREEN_LED_ON"))
+	{
+		gpio_pin_set_dt(&greenled,1);
+	}
+	else if(strstr(client->url_buffer,"GREEN_LED_OFF"))
+	{
+		gpio_pin_set_dt(&greenled,0);
+	}
+	else if(strstr(client->url_buffer,"RED_LED_ON"))
+	{
+		gpio_pin_set_dt(&redled,1);
+	}
+	else if(strstr(client->url_buffer,"RED_LED_OFF"))
+	{
+		gpio_pin_set_dt(&redled,0);
+	}
 
     if (status == HTTP_SERVER_DATA_FINAL) {
-        response_ctx->status = 404;
-        response_ctx->body = response_404;
-        response_ctx->body_len = sizeof(response_404) - 1;
+        response_ctx->status = HTTP_200_OK;
+        response_ctx->body = root_html_gz;
+        response_ctx->body_len = sizeof(root_html_gz) - 1;
         response_ctx->final_chunk = true;
     }
 
@@ -74,24 +104,31 @@ static struct http_resource_detail_dynamic default_detail = {
 
 HTTP_SERVICE_DEFINE(http_service, "0.0.0.0", &http_service_port, 1, 10, NULL, &default_detail, NULL);
 
-static uint8_t root_html_gz[] = {
-#include "root.html.gz.inc"
-};
+static int root_get_handler(struct http_client_ctx *client, enum http_data_status status,
+                   const struct http_request_ctx *request_ctx,
+                   struct http_response_ctx *response_ctx, void *user_data)
+{
+    LOG_INF("%s,%d", __func__, __LINE__);
+
+	response_ctx->status = HTTP_200_OK;
+	response_ctx->body = root_html_gz;
+	response_ctx->body_len = sizeof(root_html_gz);
+	response_ctx->final_chunk = true;
+
+    return 0;
+}
 
 struct http_resource_detail_static root_html_gz_resource_detail = {
     .common = {
         .type = HTTP_RESOURCE_TYPE_STATIC,
         .bitmask_of_supported_http_methods = BIT(HTTP_GET),
-        .content_encoding = "gzip",
+        // .content_encoding = "gzip",
     },
     .static_data = root_html_gz,
     .static_data_len = sizeof(root_html_gz),
 };
 
 HTTP_RESOURCE_DEFINE(root_html_gz_resource, http_service, "/",&root_html_gz_resource_detail);
-
-// HTTP_RESOURCE_DEFINE(root_get_resource, http_service, "/dynamic", &echo_resource_detail);
-
 
 /********** HTTP Server ***********/
 
@@ -236,6 +273,39 @@ static int connect_to_wifi(void)
 int main(void)
 {
 	// k_sleep(K_SECONDS(5));
+
+	/* Init LED GPIO Pins */
+	int ret;
+
+	if (!gpio_is_ready_dt(&redled)) {
+		LOG_ERR("RED LED gpio not ready !!");
+		return 0;
+	}
+
+	if (!gpio_is_ready_dt(&greenled)) {
+		LOG_ERR("GREEN LED gpio not ready !!");
+		return 0;
+	}
+
+	ret = gpio_pin_configure_dt(&redled, GPIO_OUTPUT_ACTIVE);
+	if (ret < 0) {
+		return 0;
+	}
+
+	ret = gpio_pin_configure_dt(&greenled, GPIO_OUTPUT_ACTIVE);
+	if (ret < 0) {
+		return 0;
+	}
+
+	// ret = gpio_pin_toggle_dt(&redled);
+	// ret = gpio_pin_toggle_dt(&greenled);
+	// k_sleep(K_SECONDS(2));
+	// ret = gpio_pin_toggle_dt(&redled);
+	// ret = gpio_pin_toggle_dt(&greenled);
+	// k_sleep(K_SECONDS(2));
+	// ret = gpio_pin_toggle_dt(&redled);
+	// ret = gpio_pin_toggle_dt(&greenled);
+
 
 	net_mgmt_init_event_callback(&cb, wifi_event_handler, NET_EVENT_WIFI_MASK);
 	net_mgmt_add_event_callback(&cb);

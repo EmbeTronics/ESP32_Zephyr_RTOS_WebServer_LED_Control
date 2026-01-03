@@ -1,6 +1,25 @@
 / {
+	aliases {
+		redled = &redled;
+		greenled = &greenled;
+	};
+
 	wifi_ap: wifi_ap {
 		compatible = "espressif,esp32-wifi";
 		status = "okay";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		redled: redled_0 {
+			gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+			label = "Red LED 0";
+		};
+
+		greenled: grrenled_0 {
+			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+			label = "Green LED 0";
+		};
 	};
 };
